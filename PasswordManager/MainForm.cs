@@ -43,9 +43,22 @@ namespace PasswordManager
                 return true;
             }
 
+            // Ctrl+O - импорт файла с паролями
+            if (keyData == (Keys.Control | Keys.O))
+            {
+                btnImport.PerformClick();
+                return true;
+            }
+
+            // Ctrl+S - экспорт файла с паролями
+            if (keyData == (Keys.Control | Keys.S))
+            {
+                btnExport.PerformClick();
+                return true;
+            }
+
             /*
-             * Ctrl+I - импорт
-             * Ctrl+S - экспорт
+             * F1 - страница помощи
              */
 
             // Ctrl+Q - выход из программы
@@ -147,13 +160,80 @@ namespace PasswordManager
 
         private void btnImport_Click(object sender, EventArgs e)
         {
+            Encryptor encryptor = new Encryptor();
 
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                openFileDialog.Filter = "Passwords file (*.pswd)|*.pswd|All files (*.*)|*.*";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string fileName = openFileDialog.FileName;
+
+                    string decryptedData = encryptor.Decrypt(fileName);
+
+                    dataGridView.Rows.Clear();
+
+                    if (!string.IsNullOrEmpty(decryptedData))
+                    {
+                        string[] records = decryptedData.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+
+                        foreach (string record in records)
+                        {
+                            string[] fields = record.Split(',');
+
+                            if (fields.Length == 3)
+                            {
+                                PasswordRecord passwordRecord = new PasswordRecord(fields[0], fields[1], fields[2]);
+
+                                dataGridView.Rows.Add(passwordRecord.Service, passwordRecord.Login, passwordRecord.Password);
+                            }
+                        }
+                    }
+                }
+            }
         }
+
 
         private void btnExport_Click(object sender, EventArgs e)
         {
+            Encryptor encryptor = new Encryptor();
 
+            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+            {
+                saveFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                saveFileDialog.Filter = "Passwords file (*.pswd)|*.pswd|All files (*.*)|*.*";
+                saveFileDialog.FileName = "Passwords";
+
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string fileName = saveFileDialog.FileName;
+                    
+                    StringBuilder stringBuilder = new StringBuilder();
+
+                    foreach (DataGridViewRow row in dataGridView.Rows)
+                    {
+                        if (row.IsNewRow) continue;
+
+                        string service = row.Cells["serviceColumn"].Value?.ToString();
+                        string login = row.Cells["loginColumn"].Value?.ToString();
+                        string password = row.Cells["passwordColumn"].Value?.ToString();
+
+                        // Мне кажется, что использование модели в этой программе бессмысленно и никак
+                        // не оптимизирует код :D
+                        PasswordRecord record = new PasswordRecord(service, login, password);
+
+                        stringBuilder.AppendLine($"{record.Service},{record.Login},{record.Password}");
+                    }
+
+                    string messageToEncrypt = stringBuilder.ToString();
+
+                    encryptor.Encrypt(fileName, messageToEncrypt);
+                }
+            }
         }
+
 
         private void ExitApplication()
         {
