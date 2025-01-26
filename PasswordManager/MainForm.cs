@@ -64,10 +64,27 @@ namespace PasswordManager
             // Ctrl+Q - выход из программы
             if (keyData == (Keys.Control | Keys.Q))
             {
-                ExitApplication();
+                Application.Exit();
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // Перегрузка закрытия формы на "крестик"
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+
+            var result = MessageBox.Show(
+                "Вы точно хотите выйти? Несохраненные данные будут утеряны.",
+                "Подтверждение выхода",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.No)
+            {
+                e.Cancel = true;
+            }
         }
 
         private void btnAdd_Click(object sender, EventArgs e)
@@ -233,21 +250,5 @@ namespace PasswordManager
                 }
             }
         }
-
-
-        private void ExitApplication()
-        {
-            var result = MessageBox.Show(
-                "Вы точно хотите выйти? Несохраненные данные будут утеряны.",
-                "Подтверждение выхода",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (result == DialogResult.Yes)
-            {
-                Application.Exit();
-            }
-        }
-
     }
 }
