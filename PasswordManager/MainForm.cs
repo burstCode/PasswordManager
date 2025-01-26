@@ -14,9 +14,14 @@ namespace PasswordManager
 {
     public partial class MainForm : Form
     {
+        Logger logger;
+
         public MainForm()
         {
             InitializeComponent();
+
+            logger = new Logger();
+            logger.Log("Успешный вход");
         }
 
         // Перегрузка кнопок для удобства
@@ -75,8 +80,8 @@ namespace PasswordManager
         {
             base.OnFormClosing(e);
 
-            var result = MessageBox.Show(
-                "Вы точно хотите выйти? Несохраненные данные будут утеряны.",
+            DialogResult result = MessageBox.Show(
+                "Вы точно хотите выйти? Несохраненные данные будут утеряны",
                 "Подтверждение выхода",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning);
@@ -85,11 +90,15 @@ namespace PasswordManager
             {
                 e.Cancel = true;
             }
+
+            logger.Log("Выход из программы");
         }
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
             AddPasswordForm addPasswordForm = new AddPasswordForm();
+
+            logger.Log("Открытие формы добавления записи...");
 
             if (addPasswordForm.ShowDialog() == DialogResult.OK)
             {
@@ -107,7 +116,17 @@ namespace PasswordManager
                         "Успех",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
+
+                    logger.Log("Успешное добавление записи");
                 }
+                else
+                {
+                    logger.Log("Не удалось добавить запись", LogType.Error);
+                }
+            }
+            else
+            {
+                logger.Log("Закрытие окна добавления записи...");
             }
         }
 
@@ -125,6 +144,8 @@ namespace PasswordManager
 
                 EditPasswordForm editPasswordForm = new EditPasswordForm(selectedRecord);
 
+                logger.Log("Открытие формы изменения записи...");
+
                 if (editPasswordForm.ShowDialog() == DialogResult.OK)
                 {
                     selectedRow.Cells["serviceColumn"].Value = editPasswordForm.Record.Service;
@@ -136,15 +157,23 @@ namespace PasswordManager
                         "Успех",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
+
+                    logger.Log("Успешное изменение записи");
+                }
+                else
+                {
+                    logger.Log("Закрытие окна изменения записи...");
                 }
             }
             else
             {
                 MessageBox.Show(
-                    "Пожалуйста, выберите запись для редактирования, нажав на квадратик слева от нужной строчки.",
-                    "Ошибка",
+                    "Пожалуйста, выберите запись для редактирования, нажав на квадратик слева от нужной строчки",
+                    "Внимание",
                     MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                    MessageBoxIcon.Warning);
+
+                logger.Log("Не была выбрана запись для редактирования", LogType.Warning);
             }
         }
 
@@ -163,15 +192,19 @@ namespace PasswordManager
                 if (result == DialogResult.Yes)
                 {
                     dataGridView.Rows.Remove(selectedRow);
+
+                    logger.Log("Успешное удаление записи");
                 }
             }
             else
             {
                 MessageBox.Show(
-                    "Пожалуйста, выберите запись для удаления, нажав на квадратик слева от нужной строчки.",
+                    "Пожалуйста, выберите запись для удаления, нажав на квадратик слева от нужной строчки",
                     "Ошибка",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+
+                logger.Log("Не была выбрана запись для удаления", LogType.Warning);
             }
         }
 
@@ -188,7 +221,24 @@ namespace PasswordManager
                 {
                     string fileName = openFileDialog.FileName;
 
-                    string decryptedData = encryptor.Decrypt(fileName);
+                    string decryptedData = string.Empty;
+
+                    try
+                    {
+                        decryptedData = encryptor.Decrypt(fileName);
+                    }
+                    catch (Exception ex) 
+                    {
+                        MessageBox.Show(
+                            $"Не удалось расшифровать пароли",
+                            "Ошибка",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+
+                        logger.Log($"Не удалось расшифровать пароли. Вызвано исключение: {ex}", LogType.Error);
+
+                        return;
+                    }
 
                     dataGridView.Rows.Clear();
 
@@ -207,6 +257,24 @@ namespace PasswordManager
                                 dataGridView.Rows.Add(passwordRecord.Service, passwordRecord.Login, passwordRecord.Password);
                             }
                         }
+
+                        MessageBox.Show(
+                            "Пароли успешно расшифрованы!",
+                            "Успех",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+
+                        logger.Log("Успешное расшифрование паролей");
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "Импортирован пустой файл",
+                            "Внимание",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+
+                        logger.Log("Импортирован пустой файл", LogType.Warning);
                     }
                 }
             }
@@ -215,6 +283,22 @@ namespace PasswordManager
 
         private void btnExport_Click(object sender, EventArgs e)
         {
+            if (dataGridView.Rows.Count == 0)
+            {
+                DialogResult result = MessageBox.Show(
+                    "Вы уверены, что хотите сохранить пустой файл без паролей?",
+                    "Пусто",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Asterisk);
+
+                if (result == DialogResult.No)
+                {
+                    return;
+                }
+
+                logger.Log("Экспорт пустого файла без паролей", LogType.Warning);
+            }
+
             Encryptor encryptor = new Encryptor();
 
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
@@ -246,7 +330,28 @@ namespace PasswordManager
 
                     string messageToEncrypt = stringBuilder.ToString();
 
-                    encryptor.Encrypt(fileName, messageToEncrypt);
+                    try
+                    {
+                        encryptor.Encrypt(fileName, messageToEncrypt);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            $"Не удалось зашифровать пароли",
+                            "Ошибка",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+
+                        logger.Log($"Не удалось зашифровать пароли. Вызвано исключение: {ex}", LogType.Error);
+                    }
+
+                    MessageBox.Show(
+                        $"Пароли успешно зашифрованы по пути {fileName}!",
+                        "Успех",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    logger.Log($"Пароли успешно зашифрованы по пути {fileName}");
                 }
             }
         }
