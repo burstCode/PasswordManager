@@ -2,9 +2,6 @@ namespace PasswordManager
 {
     public partial class LoginForm : Form
     {
-        // TODO: Подтягивать код из базы данных
-        readonly int _code = 1234;
-
         public LoginForm()
         {
             InitializeComponent();
@@ -14,7 +11,9 @@ namespace PasswordManager
         {
             if (mtbCodeEnter.Text.Length == 4)
             {
-                if (int.Parse(mtbCodeEnter.Text) == _code)
+                bool verified = VerifyPinCode(mtbCodeEnter.Text);
+
+                if (verified)
                 {
                     lblCodeEnter.Text = "Успешно!";
                     DialogResult = DialogResult.OK;
@@ -29,6 +28,22 @@ namespace PasswordManager
             {
                 lblCodeEnter.Text = "Введите секретный код";
             }
+        }
+
+        private bool VerifyPinCode(string inputPin)
+        {
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string configFilePath = Path.Combine(appDataPath, "PasswordManager", "config.cfg");
+
+            if (!File.Exists(configFilePath))
+            {
+                return false;
+            }
+
+            string savedPinHash = File.ReadAllLines(configFilePath)[1].Split('=')[1];
+            string inputPinHash = Hasher.ComputeSHA512Hash(inputPin);
+
+            return savedPinHash == inputPinHash;
         }
     }
 }

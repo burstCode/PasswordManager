@@ -343,6 +343,8 @@ namespace PasswordManager
                             MessageBoxIcon.Error);
 
                         logger.Log($"Не удалось зашифровать пароли. Вызвано исключение: {ex}", LogType.Error);
+
+                        return;
                     }
 
                     MessageBox.Show(
